@@ -9,11 +9,13 @@ sys.setdefaultencoding("utf-8")
 
 
 def get_day_weather(city_code):
-    resp = requests.get("http://www.weather.com.cn/weather1d/{}.shtml".format(city_code))
-    html = bs4.BeautifulSoup(resp.content, 'html.parser')
-    attr = html.find("div", "t").ul.find_all("li")
     day = None
     night = None
+    resp = requests.get("http://www.weather.com.cn/weather1d/{}.shtml".format(city_code))
+    html = bs4.BeautifulSoup(resp.content, 'html.parser')
+    detail_info = html.find("input", attrs={"type": "hidden", "id": "hidden_title"}).attrs['value']
+    attr = html.find("div", "t").ul.find_all("li")
+
     for tag in attr:
         block = tag.find("h1")
         if block:
@@ -25,14 +27,14 @@ def get_day_weather(city_code):
     if day and night:
         day_weather = day_weather_collect(day)
         night_weather = day_weather_collect(night)
-        return json.dumps(day_weather), json.dumps(night_weather)
+        return json.dumps([day_weather, night_weather, detail_info])
     return None, None
 
 
 def day_weather_collect(tag):
     d = tag.find("h1").string
     wea = tag.find("p", "wea").string
-    tem = tag.find("p", "tem").span.string
+    tem = "".join([tag.find("p", "tem").span.string, tag.find("p", "tem").em.string])
     win = tag.find("p", "win").span.string
     return " ".join([d, wea, tem, win])
 
@@ -67,13 +69,12 @@ def get_city_codes(city_name):
         info = rc['ref'].split("~")
         if info[2] == unicode(city_name):
             city_code = info[0]
-            print city_code
             return city_code
 
 city = sys.argv[1]
-day = sys.argv[2]
+req_day = sys.argv[2]
 code = get_city_codes(city)
-if int(day) == 1:
+if int(req_day) == 1:
     week_weather = get_day_weather(code)
 else:
     week_weather = get_week_weather(code)
